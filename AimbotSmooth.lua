@@ -251,8 +251,8 @@ function onRotateBack(userCmd)
     end
 end
 
-callbacks.Unregister("CreateMove", "LNX.Aimbot.CreateMove")
-callbacks.Register("CreateMove", "LNX.Aimbot.CreateMove", OnCreateMove)
+callbacks.Unregister("CreateMove", "LNX.AimbotSmooth.CreateMove")
+callbacks.Register("CreateMove", "LNX.AimbotSmooth.CreateMove", OnCreateMove)
 
-callbacks.Unregister("Draw", "LNX.Aimbot.Draw")
-callbacks.Register("Draw", "LNX.Aimbot.Draw", OnDraw)
+callbacks.Unregister("Draw", "LNX.AimbotSmooth.Draw")
+callbacks.Register("Draw", "LNX.AimbotSmooth.Draw", OnDraw)
