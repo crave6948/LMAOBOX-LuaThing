@@ -27,9 +27,10 @@ local options = {
     AutoShoot = true,
     Silent = true,
     AimPos = Hitbox.Head,
-    AimFov = 180,
-    MaxDist = 1400,
-    SwitchTimer = 2000
+    AimFov = 90,
+    MaxDist = 2000,
+    SwitchTimer = 2000,
+    IgnoreCloakedSpy = true
 }
 
 local currentTarget = nil
@@ -47,7 +48,6 @@ local function GetBestTarget(me)
         if not entity then goto continue end
         if not entity:IsAlive() then goto continue end
         if entity:GetTeamNumber() == entities.GetLocalPlayer():GetTeamNumber() then goto continue end
-
         -- FOV Check
         local player = WPlayer.FromEntity(entity)
         local aimPos = player:GetHitboxPos(options.AimPos)
@@ -56,10 +56,9 @@ local function GetBestTarget(me)
         local angles = Math.PositionAngles(mePos, aimPos)
         local fov = Math.AngleFov(angles, engine.GetViewAngles())
         if fov > options.AimFov or dist > options.MaxDist then goto continue end
-
         -- Visiblity Check
         if not Helpers.VisPos(entity, me:GetEyePos(), aimPos) then goto continue end
-
+        if options.IgnoreCloakedSpy and entity:InCond(4) then goto continue end
         -- Add valid target
         if ((fov * 100) / 180) + ((dist * 100) / options.MaxDist) < ((lastFov * 100) / 180) + ((lastDistance * 100) / options.MaxDist) then
             lastDistance = dist
@@ -155,7 +154,13 @@ local function OnCreateMove(userCmd)
             end
         end
     end
-    
+    if currentTarget then
+        updateTargetPosition()
+        if not currentTarget then
+            lastSwitch = os.clock()
+            currentTarget = GetBestTarget(me)
+        end
+    end
     if not currentTarget then
         lastTarget = 0
         if (hasTargetBefore) then
@@ -170,7 +175,7 @@ local function OnCreateMove(userCmd)
         return end
         onRotateBack(userCmd)
     return end
-    updateTargetPosition()
+    
     DisabledRotation = false
     hasTargetBefore = true
     if (not lastTarget == currentTarget.entity:GetIndex()) or lastTarget == 0 then
@@ -185,15 +190,17 @@ local function OnCreateMove(userCmd)
     local diffToTarget = math.sqrt(yawab^2 + pitchab^2)
     if diffToTarget > 7  and diffToTarget <= 30 then
         performe = 0.5
-    elseif diffToTarget > 30 then
+    elseif diffToTarget > 30 and diffToTarget <= 90 then
         performe = 0.75
+    elseif diffToTarget > 90 then
+        performe = 1
     end
     local sec2 = sec / performe
     local factor = easeInOutQuint(math.min(sec2, 1))
     local rot = Smooth(currentRotation,currentTarget.angles,factor)
     -- Aim at the target
-    if (cTime - lastMS > performe) then
-        lastMS = cTime - (performe / 2)
+    if (cTime - lastMS > performe * 1.5) then
+        lastMS = os.clock()
     end
     userCmd:SetViewAngles(rot:Unpack())
     currentRotation = rot
@@ -221,23 +228,20 @@ end
 function onRotateBack(userCmd)
     local cTime = os.clock()
     local sec = cTime - lastMS
-    local performe = 0.3
+    local performe = 0.15
     local p,y,r = userCmd:GetViewAngles()
     local yawab = Math.NormalizeAngle(y - currentRotation.yaw)
     local pitchab = Math.NormalizeAngle(p - currentRotation.pitch)
     local diffToTarget = math.sqrt(yawab^2 + pitchab^2)
     if diffToTarget > 7  and diffToTarget <= 30 then
-        performe = 0.5
+        performe = 0.4
     elseif diffToTarget > 30 then
-        performe = 0.75
+        performe = 0.65
     end
     local sec2 = sec / performe
     local factor = easeInOutQuint(math.min(sec2, 1))
     local rot = Smooth(currentRotation,_G.EulerAngles(p,y,r),factor)
     -- Aim at the target
-    if (cTime - lastMS > performe) then
-        lastMS = cTime - (performe / 2)
-    end
     userCmd:SetViewAngles(rot:Unpack())
     currentRotation = rot
     if not options.Silent then
